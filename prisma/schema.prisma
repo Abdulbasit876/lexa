@@ -1,0 +1,586 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum Role {
+  ADMIN
+  STUDENT
+}
+
+enum StudentStatus {
+  ACTIVE
+  LEFT
+  INACTIVE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+}
+
+enum FeeStatus {
+  PAID
+  PENDING
+  PARTIAL
+}
+
+enum PaymentSubmissionStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  JAZZCASH
+  EASYPAISA
+  OTHER
+}
+
+enum LectureCategory {
+  ACADEMIC
+  COMPUTER
+}
+
+enum LecturePlatform {
+  YOUTUBE
+  FACEBOOK
+  INSTAGRAM
+  EXTERNAL
+}
+
+enum CourseStatus {
+  ACTIVE
+  INACTIVE
+  UPCOMING
+  COMPLETED
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum SocialPlatform {
+  YOUTUBE
+  FACEBOOK
+  INSTAGRAM
+  LINKEDIN
+  TWITTER
+  WEBSITE
+  OTHER
+}
+
+// =============================================================================
+// CORE MODELS
+// =============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  role      Role     @default(STUDENT)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student        Student?
+  aiConversations AIConversation[]
+
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+model Student {
+  id            String        @id @default(cuid())
+  studentId     String        @unique // e.g. LEX-001
+  fullName      String
+  fatherName    String?
+  phone         String?
+  email         String?
+  address       String?
+  dateOfBirth   DateTime?
+  profileImage  String?
+  status        StudentStatus @default(ACTIVE)
+  admissionDate DateTime?
+  joiningDate   DateTime?
+  leavingDate   DateTime?
+  leavingReason String?
+  monthlyFee    Decimal       @default(0) @db.Decimal(10, 2)
+  notes         String?
+
+  // Academic class (one optional)
+  academicClassId String?
+  academicClass   AcademicClass? @relation(fields: [academicClassId], references: [id])
+
+  // Auth
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations
+  computerCourses   StudentComputerCourse[]
+  attendance        Attendance[]
+  fees              Fee[]
+  payments          Payment[]
+  testResults       TestResult[]
+  admissions        Admission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([status])
+  @@index([academicClassId])
+  @@map("students")
+}
+
+// =============================================================================
+// ACADEMIC STRUCTURE
+// =============================================================================
+
+model AcademicClass {
+  id           String  @id @default(cuid())
+  name         String  @unique // e.g. "Class 9"
+  description  String?
+  isActive     Boolean @default(true)
+  displayOrder Int     @default(0)
+
+  students     Student[]
+  subjects     AcademicSubject[]
+  attendance   Attendance[]
+  admissions   Admission[]
+  tests        Test[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("academic_classes")
+}
+
+model AcademicSubject {
+  id              String  @id @default(cuid())
+  name            String // e.g. "Physics"
+  description     String?
+  isActive        Boolean @default(true)
+  displayOrder    Int     @default(0)
+
+  academicClassId String
+  academicClass   AcademicClass @relation(fields: [academicClassId], references: [id], onDelete: Cascade)
+
+  chapters  Chapter[]
+  lectures  Lecture[]
+  tests     Test[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, academicClassId])
+  @@index([academicClassId])
+  @@map("academic_subjects")
+}
+
+model ComputerCourse {
+  id           String       @id @default(cuid())
+  name         String       @unique
+  description  String?
+  thumbnail    String?
+  status       CourseStatus @default(ACTIVE)
+  startDate    DateTime?
+  endDate      DateTime?
+  fee          Decimal?     @db.Decimal(10, 2)
+  instructor   String?
+  displayOrder Int          @default(0)
+
+  students   StudentComputerCourse[]
+  chapters   Chapter[]
+  lectures   Lecture[]
+  attendance Attendance[]
+  admissions AdmissionCourse[]
+  tests      Test[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("computer_courses")
+}
+
+model StudentComputerCourse {
+  id        String   @id @default(cuid())
+  studentId String
+  courseId  String
+  enrolledAt DateTime @default(now())
+
+  student Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  ComputerCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@index([courseId])
+  @@map("student_computer_courses")
+}
+
+// =============================================================================
+// CHAPTERS & LECTURES
+// =============================================================================
+
+model Chapter {
+  id           String  @id @default(cuid())
+  title        String
+  description  String?
+  chapterNumber Int    @default(1)
+  isActive     Boolean @default(true)
+
+  // Belongs to one of these (mutual exclusion enforced in app logic)
+  academicSubjectId String?
+  academicSubject   AcademicSubject? @relation(fields: [academicSubjectId], references: [id], onDelete: Cascade)
+
+  computerCourseId String?
+  computerCourse   ComputerCourse? @relation(fields: [computerCourseId], references: [id], onDelete: Cascade)
+
+  lectures Lecture[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([academicSubjectId])
+  @@index([computerCourseId])
+  @@map("chapters")
+}
+
+model Lecture {
+  id              String          @id @default(cuid())
+  title           String
+  description     String?
+  category        LectureCategory
+  platform        LecturePlatform
+  videoUrl        String
+  thumbnail       String?
+  lectureNumber   Int             @default(1)
+  duration        String?         // e.g. "45:30"
+  publishDate     DateTime        @default(now())
+  isActive        Boolean         @default(true)
+
+  // Optional relations
+  academicSubjectId String?
+  academicSubject   AcademicSubject? @relation(fields: [academicSubjectId], references: [id])
+
+  computerCourseId String?
+  computerCourse   ComputerCourse? @relation(fields: [computerCourseId], references: [id])
+
+  chapterId String?
+  chapter   Chapter? @relation(fields: [chapterId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+  @@index([academicSubjectId])
+  @@index([computerCourseId])
+  @@map("lectures")
+}
+
+// =============================================================================
+// ATTENDANCE
+// =============================================================================
+
+model Attendance {
+  id     String           @id @default(cuid())
+  date   DateTime         @db.Date
+  status AttendanceStatus
+  note   String?
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // Either academic class or computer course
+  academicClassId String?
+  academicClass   AcademicClass? @relation(fields: [academicClassId], references: [id])
+
+  computerCourseId String?
+  computerCourse   ComputerCourse? @relation(fields: [computerCourseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Prevent duplicate attendance per student per date per class/course
+  @@unique([studentId, date, academicClassId])
+  @@unique([studentId, date, computerCourseId])
+  @@index([studentId])
+  @@index([date])
+  @@map("attendance")
+}
+
+// =============================================================================
+// FEES & PAYMENTS
+// =============================================================================
+
+model Fee {
+  id            String    @id @default(cuid())
+  month         DateTime  @db.Date // First day of month
+  amount        Decimal   @db.Decimal(10, 2)
+  status        FeeStatus @default(PENDING)
+  paidAmount    Decimal   @default(0) @db.Decimal(10, 2)
+  dueDate       DateTime?
+  notes         String?
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, month])
+  @@index([studentId])
+  @@index([status])
+  @@index([month])
+  @@map("fees")
+}
+
+model Payment {
+  id              String                  @id @default(cuid())
+  amount          Decimal                 @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod
+  transactionRef  String?
+  paymentDate     DateTime
+  screenshotUrl   String?
+  submissionNote  String?
+  adminNote       String?
+  status          PaymentSubmissionStatus @default(PENDING_REVIEW)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  feeId String?
+  fee   Fee?    @relation(fields: [feeId], references: [id])
+
+  reviewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([status])
+  @@map("payments")
+}
+
+model PaymentSettings {
+  id              String  @id @default(cuid())
+  bankName        String?
+  accountTitle    String?
+  accountNumber   String?
+  iban            String?
+  easypaisaName   String?
+  easypaisaNumber String?
+  jazzcashName    String?
+  jazzcashNumber  String?
+  instructions    String?
+  isActive        Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("payment_settings")
+}
+
+// =============================================================================
+// ADMISSIONS
+// =============================================================================
+
+model Admission {
+  id            String   @id @default(cuid())
+  admissionDate DateTime
+  joiningDate   DateTime?
+  monthlyFee    Decimal  @db.Decimal(10, 2)
+  initialPayment Decimal @default(0) @db.Decimal(10, 2)
+  notes         String?
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  academicClassId String?
+  academicClass   AcademicClass? @relation(fields: [academicClassId], references: [id])
+
+  courses AdmissionCourse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@map("admissions")
+}
+
+model AdmissionCourse {
+  id          String @id @default(cuid())
+  admissionId String
+  courseId    String
+
+  admission Admission      @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  course    ComputerCourse @relation(fields: [courseId], references: [id])
+
+  @@unique([admissionId, courseId])
+  @@map("admission_courses")
+}
+
+// =============================================================================
+// TESTS & RESULTS
+// =============================================================================
+
+model Test {
+  id          String          @id @default(cuid())
+  title       String
+  category    LectureCategory
+  date        DateTime
+  totalMarks  Int
+  description String?
+  isActive    Boolean         @default(true)
+
+  academicClassId String?
+  academicClass   AcademicClass? @relation(fields: [academicClassId], references: [id])
+
+  academicSubjectId String?
+  academicSubject   AcademicSubject? @relation(fields: [academicSubjectId], references: [id])
+
+  computerCourseId String?
+  computerCourse   ComputerCourse? @relation(fields: [computerCourseId], references: [id])
+
+  results TestResult[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([date])
+  @@map("tests")
+}
+
+model TestResult {
+  id            String  @id @default(cuid())
+  obtainedMarks Int
+  totalMarks    Int
+  percentage    Decimal @db.Decimal(5, 2)
+  grade         String?
+  remarks       String?
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  testId String
+  test   Test   @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, testId])
+  @@index([studentId])
+  @@index([testId])
+  @@map("test_results")
+}
+
+// =============================================================================
+// ANNOUNCEMENTS
+// =============================================================================
+
+model Announcement {
+  id          String             @id @default(cuid())
+  title       String
+  description String
+  date        DateTime           @default(now())
+  status      AnnouncementStatus @default(DRAFT)
+  isPublic    Boolean            @default(false) // Also show on public website
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([date])
+  @@map("announcements")
+}
+
+// =============================================================================
+// SOCIAL LINKS
+// =============================================================================
+
+model SocialLink {
+  id           String         @id @default(cuid())
+  platform     SocialPlatform
+  url          String
+  displayName  String
+  isActive     Boolean        @default(true)
+  displayOrder Int            @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("social_links")
+}
+
+// =============================================================================
+// AI TUTOR
+// =============================================================================
+
+model AIConversation {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages  AIMessage[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([userId])
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             String @id @default(cuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role    String // "user" | "assistant"
+  content String
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@map("ai_messages")
+}
+
+// =============================================================================
+// ACADEMY SETTINGS
+// =============================================================================
+
+model AcademySettings {
+  id           String  @id @default(cuid())
+  name         String  @default("Academy Lexa")
+  tagline      String?
+  description  String?
+  address      String?
+  phone        String?
+  email        String?
+  logo         String?
+  heroImage    String?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("academy_settings")
+}
