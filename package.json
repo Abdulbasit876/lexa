@@ -17,11 +17,6 @@
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
-  "overrides": {
-    "next-auth": {
-      "next": "$next"
-    }
-  },
   "dependencies": {
     "@ai-sdk/google": "^1.1.20",
     "@auth/prisma-adapter": "^2.8.0",
@@ -31,7 +26,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.479.0",
-    "next": "16.3.5",
+    "next": "15.5.27",
     "next-auth": "5.0.0-beta.25",
     "prisma": "^6.4.1",
     "react": "19.2.8",
@@ -48,7 +43,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.5",
+    "eslint-config-next": "15.5.27",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "typescript": "^5"
