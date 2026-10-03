@@ -1,0 +1,6 @@
+[build]
+  # The site's NODE_ENV env var is set to "development", which breaks `next build`
+  # prerendering. Force production for the build step only, so devDependencies
+  # still install.
+  command = "NODE_ENV=production npm run build"
+  publish = ".next"
