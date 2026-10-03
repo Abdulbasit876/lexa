@@ -62,7 +62,11 @@ export async function generateAIResponse(
   userId: string
 ): Promise<AIResponse> {
   const provider = process.env.AI_PROVIDER || 'google'
-  const apiKey = process.env.AI_API_KEY
+  // Prefer an explicit key; otherwise use the Gemini credentials Netlify AI Gateway injects at runtime.
+  const apiKey = process.env.AI_API_KEY || process.env.GEMINI_API_KEY
+  const baseUrl = process.env.AI_API_KEY
+    ? GEMINI_DEFAULT_BASE_URL
+    : (process.env.GOOGLE_GEMINI_BASE_URL || GEMINI_DEFAULT_BASE_URL).replace(/\/$/, '')
 
   if (!apiKey) {
     return {
@@ -73,7 +77,7 @@ export async function generateAIResponse(
 
   try {
     if (provider === 'google') {
-      return await callGemini(messages, apiKey)
+      return await callGemini(messages, apiKey, baseUrl)
     }
 
     return {
@@ -89,8 +93,13 @@ export async function generateAIResponse(
   }
 }
 
-async function callGemini(messages: ChatMessage[], apiKey: string): Promise<AIResponse> {
-  const model = process.env.AI_MODEL || 'gemini-1.5-flash'
+const GEMINI_DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com'
+const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash'
+
+async function callGemini(messages: ChatMessage[], apiKey: string, baseUrl: string): Promise<AIResponse> {
+  // Gemini 1.x models are retired, so fall back to a current model if one is still configured.
+  const configured = process.env.AI_MODEL
+  const model = configured && !configured.startsWith('gemini-1.') ? configured : GEMINI_DEFAULT_MODEL
 
   const contents = messages.map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -98,10 +107,10 @@ async function callGemini(messages: ChatMessage[], apiKey: string): Promise<AIRe
   }))
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    `${baseUrl}/v1beta/models/${model}:generateContent`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents,
