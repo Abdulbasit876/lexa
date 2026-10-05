@@ -1,4 +1,4 @@
-'use server'
+
 
 import React from 'react'
 import { getFees, generateMonthlyFees, markFeePaid } from '@/app/actions/fees'

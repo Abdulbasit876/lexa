@@ -32,7 +32,7 @@ export default async function AdminDashboardPage() {
   const todayAttendanceCount = await prisma.attendance.count({
     where: { date: today, status: 'PRESENT' },
   })
-  const attendanceRate = activeStudents > 0 ? Math.round((todayAttendanceCount / activeStudents) * 100) : 92
+  const attendanceRate = activeStudents > 0 ? Math.round((todayAttendanceCount / activeStudents) * 100) : 0
 
   // Financial aggregates for current month
   const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -92,21 +92,21 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatsCard
           title="Total Students"
-          value={totalStudents || 120}
+          value={totalStudents}
           color="indigo"
           icon={<Users className="h-6 w-6" />}
           description="Registered student accounts"
         />
         <StatsCard
           title="Active Students"
-          value={activeStudents || 105}
+          value={activeStudents}
           color="emerald"
           icon={<UserCheck className="h-6 w-6" />}
           description="Currently enrolled"
         />
         <StatsCard
           title="Left Students"
-          value={leftStudents || 15}
+          value={leftStudents}
           color="amber"
           icon={<UserX className="h-6 w-6" />}
           description="Preserved historical records"
@@ -124,14 +124,14 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <StatsCard
           title="This Month's Collection"
-          value={formatCurrency(Number(paidFees._sum.paidAmount || 180000))}
+          value={formatCurrency(Number(paidFees._sum.paidAmount || 0))}
           color="indigo"
           icon={<CreditCard className="h-6 w-6" />}
           description="Total fee collected in current month"
         />
         <StatsCard
           title="Pending Fees"
-          value={formatCurrency(Number(pendingFees._sum.amount || 45000))}
+          value={formatCurrency(Number(pendingFees._sum.amount || 0))}
           color="rose"
           icon={<AlertCircle className="h-6 w-6" />}
           description="Outstanding uncollected fees"
@@ -169,7 +169,7 @@ export default async function AdminDashboardPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge variant="success">Rs. {Number(adm.monthlyFee).toLocaleString()}/mo</Badge>
+                    <Badge variant="success">{formatCurrency(Number(adm.monthlyFee))}/mo</Badge>
                     <span className="block text-[11px] text-slate-400 mt-1">{timeAgo(adm.createdAt)}</span>
                   </div>
                 </div>
@@ -210,7 +210,7 @@ export default async function AdminDashboardPage() {
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="font-bold text-sm text-emerald-600 block">Rs. {Number(p.amount).toLocaleString()}</span>
+                      <span className="font-bold text-sm text-emerald-600 block">{formatCurrency(Number(p.amount))}</span>
                       <Badge variant="warning" size="sm">PENDING</Badge>
                     </div>
                   </div>

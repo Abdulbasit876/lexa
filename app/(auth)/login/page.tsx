@@ -98,8 +98,7 @@ export default function LoginPage() {
           </form>
 
           <div className="pt-4 border-t border-white/10 text-center space-y-2 text-xs text-slate-400">
-            <p>Demo Admin Login: <code className="text-indigo-300 font-mono">admin</code> / <code className="text-indigo-300 font-mono">admin123</code></p>
-            <p>Demo Student Login: <code className="text-indigo-300 font-mono">ali.raza</code> / <code className="text-indigo-300 font-mono">student123</code></p>
+            <p>Admin Account: <code className="text-indigo-300 font-mono">admin</code> / <code className="text-indigo-300 font-mono">admin123</code></p>
           </div>
         </div>
 

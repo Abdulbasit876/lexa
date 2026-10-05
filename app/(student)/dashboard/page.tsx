@@ -16,7 +16,7 @@ import {
   Award,
 } from 'lucide-react'
 import Link from 'next/link'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatCurrency } from '@/lib/utils'
 
 export default async function StudentDashboardPage() {
   const user = await requireStudent()
@@ -37,7 +37,7 @@ export default async function StudentDashboardPage() {
   // Calculate student attendance %
   const totalAtt = student?.attendance.length || 0
   const presentCount = student?.attendance.filter((a) => a.status === 'PRESENT').length || 0
-  const attendanceRate = totalAtt > 0 ? Math.round((presentCount / totalAtt) * 100) : 92
+  const attendanceRate = totalAtt > 0 ? Math.round((presentCount / totalAtt) * 100) : 0
 
   // Current fee
   const latestFee = student?.fees[0]
@@ -63,7 +63,7 @@ export default async function StudentDashboardPage() {
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
             Welcome back, {student?.fullName || user.name || 'Student'} 👋
           </h2>
-          <p className="text-xs text-slate-500 font-mono">Student ID: {student?.studentId || 'LEX-001'}</p>
+          <p className="text-xs text-slate-500 font-mono">Student ID: {student?.studentId || 'N/A'}</p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/dashboard/ai-tutor">
@@ -91,7 +91,7 @@ export default async function StudentDashboardPage() {
               <CalendarCheck className="h-6 w-6" />
             </div>
           </div>
-          <p className="text-xs text-slate-400 mt-2">{presentCount} Days Present out of {totalAtt || 30}</p>
+          <p className="text-xs text-slate-400 mt-2">{presentCount} Days Present out of {totalAtt || 0}</p>
         </Card>
 
         <Card hover className="p-6">
@@ -99,7 +99,7 @@ export default async function StudentDashboardPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">This Month Fee</p>
               <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-1">
-                Rs. {Number(latestFee?.amount || student?.monthlyFee || 2500).toLocaleString()}
+                {formatCurrency(Number(latestFee?.amount || student?.monthlyFee || 0))}
               </p>
             </div>
             <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600">
@@ -108,7 +108,7 @@ export default async function StudentDashboardPage() {
           </div>
           <div className="mt-2">
             <Badge variant={latestFee?.status === 'PAID' ? 'success' : 'danger'} size="sm">
-              Fee {latestFee?.status || 'PAID'}
+              Fee {latestFee?.status || 'N/A'}
             </Badge>
           </div>
         </Card>
@@ -118,14 +118,14 @@ export default async function StudentDashboardPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Upcoming Test</p>
               <p className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-1 line-clamp-1">
-                {upcomingTest?.title || 'Physics Chapter 3 Test'}
+                {upcomingTest?.title || 'No upcoming test'}
               </p>
             </div>
             <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950 text-amber-600">
               <Award className="h-6 w-6" />
             </div>
           </div>
-          <p className="text-xs text-slate-400 mt-2">{upcomingTest ? formatDate(upcomingTest.date) : 'Scheduled soon'}</p>
+          <p className="text-xs text-slate-400 mt-2">{upcomingTest ? formatDate(upcomingTest.date) : 'Not scheduled'}</p>
         </Card>
       </div>
 

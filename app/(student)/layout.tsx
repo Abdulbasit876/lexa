@@ -14,11 +14,14 @@ export default async function StudentLayout({ children }: { children: React.Reac
       })
     : null
 
+  // Serialize to convert Prisma Decimal objects to plain values for Client Components
+  const serializedStudent = student ? JSON.parse(JSON.stringify(student)) : null
+
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100">
       <StudentSidebar />
       <div className="flex-1 flex flex-col min-w-0">
-        <StudentHeader user={user} student={student} />
+        <StudentHeader user={user} student={serializedStudent} />
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">{children}</main>
       </div>
     </div>
