@@ -35,6 +35,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           <Badge variant={student.status === 'ACTIVE' ? 'success' : student.status === 'LEFT' ? 'warning' : 'neutral'}>
             Status: {student.status}
           </Badge>
+          <Link href={`/admin/students/${id}/edit`}>
+            <Button variant="outline" size="sm" icon={<Edit className="h-4 w-4" />}>
+              Edit Student
+            </Button>
+          </Link>
         </div>
       </div>
 

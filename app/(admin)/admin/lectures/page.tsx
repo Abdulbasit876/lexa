@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { getPublicLectures, createLecture, deleteLecture } from '@/app/actions/lectures'
+import { getPublicLectures, createLecture, updateLecture, deleteLecture } from '@/app/actions/lectures'
 import { getAcademicClasses } from '@/app/actions/academic'
 import { getComputerCourses } from '@/app/actions/courses'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
-import { Video, Plus, Trash2, ExternalLink } from 'lucide-react'
+import { Video, Plus, Trash2, ExternalLink, Edit2 } from 'lucide-react'
 import { LectureCategory, LecturePlatform } from '@prisma/client'
 
 export default function AdminLecturesPage() {
@@ -21,6 +21,8 @@ export default function AdminLecturesPage() {
   const [classes, setClasses] = useState<any[]>([])
   const [courses, setCourses] = useState<any[]>([])
   const [addModal, setAddModal] = useState(false)
+  const [editModal, setEditModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const [formData, setFormData] = useState<{
@@ -64,7 +66,7 @@ export default function AdminLecturesPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    const res = await createLecture({
+    const payload = {
       title: formData.title,
       description: formData.description,
       category: formData.category,
@@ -73,16 +75,28 @@ export default function AdminLecturesPage() {
       duration: formData.duration,
       academicSubjectId: formData.category === LectureCategory.ACADEMIC ? formData.academicSubjectId : undefined,
       computerCourseId: formData.category === LectureCategory.COMPUTER ? formData.computerCourseId : undefined,
-    })
-
-    setIsLoading(false)
-
-    if (res.error) {
-      toast.error(res.error)
-      return
     }
 
-    toast.success('Public lecture link added!')
+    if (editingId) {
+      const res = await updateLecture(editingId, payload)
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Public lecture link updated!')
+      setEditModal(false)
+    } else {
+      const res = await createLecture(payload)
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Public lecture link added!')
+      setAddModal(false)
+    }
+
     setFormData({
       title: '',
       description: '',
@@ -93,7 +107,7 @@ export default function AdminLecturesPage() {
       academicSubjectId: '',
       computerCourseId: '',
     })
-    setAddModal(false)
+    setEditingId(null)
     loadData()
   }
 
@@ -104,6 +118,21 @@ export default function AdminLecturesPage() {
     loadData()
   }
 
+  const openEditModal = (lec: any) => {
+    setEditingId(lec.id)
+    setFormData({
+      title: lec.title,
+      description: lec.description || '',
+      category: lec.category,
+      platform: lec.platform,
+      videoUrl: lec.videoUrl,
+      duration: lec.duration || '',
+      academicSubjectId: lec.academicSubjectId || '',
+      computerCourseId: lec.computerCourseId || '',
+    })
+    setEditModal(true)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -111,7 +140,7 @@ export default function AdminLecturesPage() {
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Public Lectures Management</h2>
           <p className="text-xs text-slate-500">Manage external video links (YouTube, Facebook, Instagram, Web) accessible by everyone.</p>
         </div>
-        <Button onClick={() => setAddModal(true)} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
+        <Button onClick={() => { setEditingId(null); setFormData({ title: '', description: '', category: LectureCategory.ACADEMIC, platform: LecturePlatform.YOUTUBE, videoUrl: '', duration: '', academicSubjectId: '', computerCourseId: '' }); setAddModal(true); }} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
           Add Public Lecture Link
         </Button>
       </div>
@@ -154,6 +183,9 @@ export default function AdminLecturesPage() {
                     </a>
                   </td>
                   <td className="p-4 text-right">
+                    <button onClick={() => openEditModal(lec)} className="text-slate-400 hover:text-indigo-600 p-1 mr-2">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
                     <button onClick={() => handleDelete(lec.id)} className="text-slate-400 hover:text-rose-500 p-1">
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -173,8 +205,8 @@ export default function AdminLecturesPage() {
         </CardContent>
       </Card>
 
-      {/* Modal Add Lecture */}
-      <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Add Public Lecture Link">
+      {/* Modal Add/Edit Lecture */}
+      <Modal isOpen={addModal || editModal} onClose={() => { setAddModal(false); setEditModal(false); setEditingId(null); }} title={editingId ? "Edit Public Lecture Link" : "Add Public Lecture Link"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Lecture Title *" required placeholder="e.g. Lecture 01 — Introduction to Motion" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
           <Textarea label="Description" placeholder="Topics covered..." value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
@@ -217,7 +249,7 @@ export default function AdminLecturesPage() {
           )}
 
           <Button type="submit" variant="primary" size="md" isLoading={isLoading} className="w-full justify-center">
-            Save Lecture Link
+            {editingId ? "Update Lecture Link" : "Save Lecture Link"}
           </Button>
         </form>
       </Modal>

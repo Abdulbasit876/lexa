@@ -141,6 +141,7 @@ model Student {
   payments          Payment[]
   testResults       TestResult[]
   admissions        Admission[]
+  certificates      Certificate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -167,6 +168,7 @@ model AcademicClass {
   attendance   Attendance[]
   admissions   Admission[]
   tests        Test[]
+  certificates Certificate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -209,12 +211,13 @@ model ComputerCourse {
   instructor   String?
   displayOrder Int          @default(0)
 
-  students   StudentComputerCourse[]
-  chapters   Chapter[]
-  lectures   Lecture[]
-  attendance Attendance[]
-  admissions AdmissionCourse[]
-  tests      Test[]
+  students     StudentComputerCourse[]
+  chapters     Chapter[]
+  lectures     Lecture[]
+  attendance   Attendance[]
+  admissions   AdmissionCourse[]
+  tests        Test[]
+  certificates Certificate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -584,3 +587,37 @@ model AcademySettings {
 
   @@map("academy_settings")
 }
+
+// =============================================================================
+// CERTIFICATES
+// =============================================================================
+
+model Certificate {
+  id                String   @id @default(cuid())
+  certificateNumber String   @unique // e.g. LEXA-2024-0001
+  title             String   // e.g. "Certificate of Completion"
+  description       String?
+  issuedDate        DateTime @default(now())
+  validUntil        DateTime?
+  grade             String?
+  remarks           String?
+
+  // Who it belongs to
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // What it's for (one of these)
+  academicClassId  String?
+  academicClass    AcademicClass?  @relation(fields: [academicClassId], references: [id])
+
+  computerCourseId String?
+  computerCourse   ComputerCourse? @relation(fields: [computerCourseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([certificateNumber])
+  @@map("certificates")
+}
+

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { getAnnouncements, createAnnouncement, deleteAnnouncement } from '@/app/actions/announcements'
+import { getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/app/actions/announcements'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -9,13 +9,15 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
-import { Bell, Plus, Trash2, Globe } from 'lucide-react'
+import { Bell, Plus, Trash2, Globe, Edit2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 export default function AdminAnnouncementsPage() {
   const toast = useToast()
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [addModal, setAddModal] = useState(false)
+  const [editModal, setEditModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -36,22 +38,34 @@ export default function AdminAnnouncementsPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    const res = await createAnnouncement({
+    const payload = {
       title: formData.title,
       description: formData.description,
       isPublic: formData.isPublic,
-    })
-
-    setIsLoading(false)
-
-    if (res.error) {
-      toast.error(res.error)
-      return
     }
 
-    toast.success('Academy-wide announcement published!')
+    if (editingId) {
+      const res = await updateAnnouncement(editingId, payload)
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Announcement updated!')
+      setEditModal(false)
+    } else {
+      const res = await createAnnouncement(payload)
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Academy-wide announcement published!')
+      setAddModal(false)
+    }
+
     setFormData({ title: '', description: '', isPublic: true })
-    setAddModal(false)
+    setEditingId(null)
     loadData()
   }
 
@@ -62,6 +76,16 @@ export default function AdminAnnouncementsPage() {
     loadData()
   }
 
+  const openEditModal = (ann: any) => {
+    setEditingId(ann.id)
+    setFormData({
+      title: ann.title,
+      description: ann.description,
+      isPublic: ann.isPublic,
+    })
+    setEditModal(true)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -69,7 +93,7 @@ export default function AdminAnnouncementsPage() {
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Academy Announcements</h2>
           <p className="text-xs text-slate-500">Publish academy-wide announcements visible to all students and website visitors.</p>
         </div>
-        <Button onClick={() => setAddModal(true)} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
+        <Button onClick={() => { setEditingId(null); setFormData({ title: '', description: '', isPublic: true }); setAddModal(true); }} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
           New Announcement
         </Button>
       </div>
@@ -86,9 +110,14 @@ export default function AdminAnnouncementsPage() {
                   </Badge>
                 )}
               </div>
-              <button onClick={() => handleDelete(ann.id)} className="text-slate-400 hover:text-rose-500 p-1">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => openEditModal(ann)} className="text-slate-400 hover:text-indigo-600 p-1">
+                  <Edit2 className="h-4 w-4" />
+                </button>
+                <button onClick={() => handleDelete(ann.id)} className="text-slate-400 hover:text-rose-500 p-1">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div>
@@ -101,8 +130,8 @@ export default function AdminAnnouncementsPage() {
         ))}
       </div>
 
-      {/* Modal Add Announcement */}
-      <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Publish Academy-Wide Announcement">
+      {/* Modal Add/Edit Announcement */}
+      <Modal isOpen={addModal || editModal} onClose={() => { setAddModal(false); setEditModal(false); setEditingId(null); }} title={editingId ? "Edit Announcement" : "Publish Academy-Wide Announcement"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Announcement Title *" required placeholder="e.g. Physics Test on Monday" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
           <Textarea label="Announcement Details *" required rows={4} placeholder="Notice content..." value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
@@ -118,7 +147,7 @@ export default function AdminAnnouncementsPage() {
           </label>
 
           <Button type="submit" variant="primary" size="md" isLoading={isLoading} className="w-full justify-center">
-            Publish Announcement
+            {editingId ? "Update Announcement" : "Publish Announcement"}
           </Button>
         </form>
       </Modal>

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { getSocialLinks, createSocialLink, deleteSocialLink } from '@/app/actions/social-links'
+import { getSocialLinks, createSocialLink, updateSocialLink, deleteSocialLink } from '@/app/actions/social-links'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -9,13 +9,15 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
-import { Share2, Plus, Trash2, ExternalLink } from 'lucide-react'
+import { Share2, Plus, Trash2, ExternalLink, Edit2 } from 'lucide-react'
 import { SocialPlatform } from '@prisma/client'
 
 export default function AdminSocialLinksPage() {
   const toast = useToast()
   const [links, setLinks] = useState<any[]>([])
   const [addModal, setAddModal] = useState(false)
+  const [editModal, setEditModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -36,17 +38,28 @@ export default function AdminSocialLinksPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    const res = await createSocialLink(formData)
-    setIsLoading(false)
-
-    if (res.error) {
-      toast.error(res.error)
-      return
+    if (editingId) {
+      const res = await updateSocialLink(editingId, formData)
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Social link updated!')
+      setEditModal(false)
+    } else {
+      const res = await createSocialLink(formData)
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Social link added!')
+      setAddModal(false)
     }
 
-    toast.success('Social link added!')
     setFormData({ platform: SocialPlatform.YOUTUBE, displayName: '', url: '' })
-    setAddModal(false)
+    setEditingId(null)
     loadData()
   }
 
@@ -57,6 +70,16 @@ export default function AdminSocialLinksPage() {
     loadData()
   }
 
+  const openEditModal = (link: any) => {
+    setEditingId(link.id)
+    setFormData({
+      platform: link.platform,
+      displayName: link.displayName,
+      url: link.url,
+    })
+    setEditModal(true)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -64,7 +87,7 @@ export default function AdminSocialLinksPage() {
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Social Media Links</h2>
           <p className="text-xs text-slate-500">Manage social links displayed on the public website footer & contact pages.</p>
         </div>
-        <Button onClick={() => setAddModal(true)} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
+        <Button onClick={() => { setEditingId(null); setFormData({ platform: SocialPlatform.YOUTUBE, displayName: '', url: '' }); setAddModal(true); }} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
           Add Social Link
         </Button>
       </div>
@@ -93,6 +116,9 @@ export default function AdminSocialLinksPage() {
                     </a>
                   </td>
                   <td className="p-4 text-right">
+                    <button onClick={() => openEditModal(link)} className="text-slate-400 hover:text-indigo-600 p-1 mr-2">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
                     <button onClick={() => handleDelete(link.id)} className="text-slate-400 hover:text-rose-500 p-1">
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -112,8 +138,8 @@ export default function AdminSocialLinksPage() {
         </CardContent>
       </Card>
 
-      {/* Modal Add Link */}
-      <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Add Social Link">
+      {/* Modal Add/Edit Link */}
+      <Modal isOpen={addModal || editModal} onClose={() => { setAddModal(false); setEditModal(false); setEditingId(null); }} title={editingId ? "Edit Social Link" : "Add Social Link"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Select label="Platform *" value={formData.platform} onChange={(e) => setFormData({ ...formData, platform: e.target.value as any })}>
             <option value="YOUTUBE">YouTube</option>
@@ -129,7 +155,7 @@ export default function AdminSocialLinksPage() {
           <Input label="Target URL *" type="url" required placeholder="https://youtube.com/..." value={formData.url} onChange={(e) => setFormData({ ...formData, url: e.target.value })} />
 
           <Button type="submit" variant="primary" size="md" isLoading={isLoading} className="w-full justify-center">
-            Save Link
+            {editingId ? "Update Link" : "Save Link"}
           </Button>
         </form>
       </Modal>

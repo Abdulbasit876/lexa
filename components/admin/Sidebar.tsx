@@ -19,6 +19,7 @@ import {
   Video,
   FileText,
   Award,
+  ScrollText,
   Bell,
   UserCog,
   Share2,
@@ -70,6 +71,7 @@ export function AdminSidebar() {
       items: [
         { href: '/admin/tests', label: 'Tests', icon: FileText },
         { href: '/admin/results', label: 'Results', icon: Award },
+        { href: '/admin/certificates', label: 'Certificates', icon: ScrollText },
       ],
     },
     {

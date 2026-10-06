@@ -12,7 +12,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
 import { useToast } from '@/components/ui/Toast'
-import { Award, Plus, ArrowLeft } from 'lucide-react'
+import { Award, Plus, ArrowLeft, Edit2 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 
@@ -22,6 +22,7 @@ export default function AdminResultsPage() {
   const [tests, setTests] = useState<any[]>([])
   const [students, setStudents] = useState<any[]>([])
   const [addModal, setAddModal] = useState(false)
+  const [editModal, setEditModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -59,10 +60,21 @@ export default function AdminResultsPage() {
       return
     }
 
-    toast.success('Test result recorded!')
+    toast.success(editModal ? 'Test result updated!' : 'Test result recorded!')
     setFormData({ testId: '', studentId: '', obtainedMarks: '', remarks: '' })
     setAddModal(false)
+    setEditModal(false)
     loadData()
+  }
+
+  const openEditModal = (result: any) => {
+    setFormData({
+      testId: result.testId,
+      studentId: result.studentId,
+      obtainedMarks: result.obtainedMarks.toString(),
+      remarks: result.remarks || '',
+    })
+    setEditModal(true)
   }
 
   return (
@@ -79,7 +91,7 @@ export default function AdminResultsPage() {
             <p className="text-xs text-slate-500">Record obtained marks and grades for students.</p>
           </div>
         </div>
-        <Button onClick={() => setAddModal(true)} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
+        <Button onClick={() => { setFormData({ testId: '', studentId: '', obtainedMarks: '', remarks: '' }); setAddModal(true); }} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
           Record Result
         </Button>
       </div>
@@ -95,6 +107,7 @@ export default function AdminResultsPage() {
                 <th className="p-4">Percentage</th>
                 <th className="p-4">Grade</th>
                 <th className="p-4">Remarks</th>
+                <th className="p-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -118,12 +131,17 @@ export default function AdminResultsPage() {
                     <Badge variant="info">Grade {r.grade || 'A'}</Badge>
                   </td>
                   <td className="p-4 text-slate-500">{r.remarks || '—'}</td>
+                  <td className="p-4 text-right">
+                    <button onClick={() => openEditModal(r)} className="text-slate-400 hover:text-indigo-600 p-1">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
 
               {results.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                  <td colSpan={7} className="p-8 text-center text-slate-500">
                     No student results recorded yet.
                   </td>
                 </tr>
@@ -134,9 +152,9 @@ export default function AdminResultsPage() {
       </Card>
 
       {/* Modal Record Result */}
-      <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Record Student Test Result">
+      <Modal isOpen={addModal || editModal} onClose={() => { setAddModal(false); setEditModal(false); }} title={editModal ? "Edit Student Test Result" : "Record Student Test Result"}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Select label="Select Test *" required value={formData.testId} onChange={(e) => setFormData({ ...formData, testId: e.target.value })}>
+          <Select label="Select Test *" required value={formData.testId} onChange={(e) => setFormData({ ...formData, testId: e.target.value })} disabled={editModal}>
             <option value="">-- Choose Test --</option>
             {tests.map((t) => (
               <option key={t.id} value={t.id}>
@@ -145,7 +163,7 @@ export default function AdminResultsPage() {
             ))}
           </Select>
 
-          <Select label="Select Student *" required value={formData.studentId} onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}>
+          <Select label="Select Student *" required value={formData.studentId} onChange={(e) => setFormData({ ...formData, studentId: e.target.value })} disabled={editModal}>
             <option value="">-- Choose Student --</option>
             {students.map((s) => (
               <option key={s.id} value={s.id}>
@@ -158,7 +176,7 @@ export default function AdminResultsPage() {
           <Input label="Remarks (Optional)" placeholder="Excellent effort" value={formData.remarks} onChange={(e) => setFormData({ ...formData, remarks: e.target.value })} />
 
           <Button type="submit" variant="primary" size="md" isLoading={isLoading} className="w-full justify-center">
-            Save Result
+            {editModal ? "Update Result" : "Save Result"}
           </Button>
         </form>
       </Modal>

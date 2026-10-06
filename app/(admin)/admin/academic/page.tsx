@@ -1,24 +1,32 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { getAcademicClasses, createAcademicClass, createAcademicSubject, deleteAcademicClass, deleteAcademicSubject } from '@/app/actions/academic'
+import { getAcademicClasses, createAcademicClass, updateAcademicClass, deleteAcademicClass, createAcademicSubject, updateAcademicSubject, deleteAcademicSubject } from '@/app/actions/academic'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
-import { BookOpen, Plus, Trash2, FolderPlus } from 'lucide-react'
+import { BookOpen, Plus, Trash2, FolderPlus, Edit2 } from 'lucide-react'
 
 export default function AcademicClassesPage() {
   const toast = useToast()
   const [classes, setClasses] = useState<any[]>([])
+  
   const [addClassModal, setAddClassModal] = useState(false)
+  const [editClassModal, setEditClassModal] = useState(false)
+  const [editingClassId, setEditingClassId] = useState<string | null>(null)
+  
   const [addSubjectModal, setAddSubjectModal] = useState(false)
+  const [editSubjectModal, setEditSubjectModal] = useState(false)
+  const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null)
+  
   const [selectedClassId, setSelectedClassId] = useState('')
   const [className, setClassName] = useState('')
   const [classDescription, setClassDescription] = useState('')
   const [subjectName, setSubjectName] = useState('')
+  
   const [isLoading, setIsLoading] = useState(false)
 
   const loadData = () => {
@@ -29,38 +37,62 @@ export default function AcademicClassesPage() {
     loadData()
   }, [])
 
-  const handleCreateClass = async (e: React.FormEvent) => {
+  const handleClassSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    const res = await createAcademicClass({ name: className, description: classDescription })
-    setIsLoading(false)
-
-    if (res.error) {
-      toast.error(res.error)
-      return
+    
+    if (editingClassId) {
+      const res = await updateAcademicClass(editingClassId, { name: className, description: classDescription })
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Academic class updated!')
+      setEditClassModal(false)
+    } else {
+      const res = await createAcademicClass({ name: className, description: classDescription })
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Academic class created!')
+      setAddClassModal(false)
     }
 
-    toast.success('Academic class created!')
     setClassName('')
     setClassDescription('')
-    setAddClassModal(false)
+    setEditingClassId(null)
     loadData()
   }
 
-  const handleCreateSubject = async (e: React.FormEvent) => {
+  const handleSubjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    const res = await createAcademicSubject({ name: subjectName, academicClassId: selectedClassId })
-    setIsLoading(false)
-
-    if (res.error) {
-      toast.error(res.error)
-      return
+    
+    if (editingSubjectId) {
+      const res = await updateAcademicSubject(editingSubjectId, { name: subjectName })
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Subject updated!')
+      setEditSubjectModal(false)
+    } else {
+      const res = await createAcademicSubject({ name: subjectName, academicClassId: selectedClassId })
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Subject added!')
+      setAddSubjectModal(false)
     }
 
-    toast.success('Subject added!')
     setSubjectName('')
-    setAddSubjectModal(false)
+    setEditingSubjectId(null)
     loadData()
   }
 
@@ -77,6 +109,19 @@ export default function AcademicClassesPage() {
     toast.success('Subject deleted.')
     loadData()
   }
+  
+  const openEditClassModal = (cls: any) => {
+    setEditingClassId(cls.id)
+    setClassName(cls.name)
+    setClassDescription(cls.description || '')
+    setEditClassModal(true)
+  }
+
+  const openEditSubjectModal = (sub: any) => {
+    setEditingSubjectId(sub.id)
+    setSubjectName(sub.name)
+    setEditSubjectModal(true)
+  }
 
   return (
     <div className="space-y-6">
@@ -85,7 +130,7 @@ export default function AcademicClassesPage() {
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Academic Classes & Subjects</h2>
           <p className="text-xs text-slate-500">Manage academic grade levels (Class 6 - Intermediate) and their respective subjects.</p>
         </div>
-        <Button onClick={() => setAddClassModal(true)} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
+        <Button onClick={() => { setEditingClassId(null); setClassName(''); setClassDescription(''); setAddClassModal(true); }} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
           Add Academic Class
         </Button>
       </div>
@@ -100,6 +145,9 @@ export default function AcademicClassesPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="info">{cls._count.students} Enrolled</Badge>
+                <button onClick={() => openEditClassModal(cls)} className="text-slate-400 hover:text-indigo-600 p-1">
+                  <Edit2 className="h-4 w-4" />
+                </button>
                 <button onClick={() => handleDeleteClass(cls.id)} className="text-slate-400 hover:text-rose-500 p-1">
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -112,6 +160,8 @@ export default function AcademicClassesPage() {
                 <Button
                   onClick={() => {
                     setSelectedClassId(cls.id)
+                    setEditingSubjectId(null)
+                    setSubjectName('')
                     setAddSubjectModal(true)
                   }}
                   variant="ghost"
@@ -129,6 +179,9 @@ export default function AcademicClassesPage() {
                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-200/50"
                   >
                     {sub.name}
+                    <button onClick={() => openEditSubjectModal(sub)} className="hover:text-indigo-600 ml-1">
+                      <Edit2 className="h-3 w-3" />
+                    </button>
                     <button onClick={() => handleDeleteSubject(sub.id)} className="hover:text-rose-500">
                       ×
                     </button>
@@ -141,23 +194,23 @@ export default function AcademicClassesPage() {
         ))}
       </div>
 
-      {/* Modal Add Class */}
-      <Modal isOpen={addClassModal} onClose={() => setAddClassModal(false)} title="Add Academic Class">
-        <form onSubmit={handleCreateClass} className="space-y-4">
+      {/* Modal Add/Edit Class */}
+      <Modal isOpen={addClassModal || editClassModal} onClose={() => { setAddClassModal(false); setEditClassModal(false); setEditingClassId(null); }} title={editingClassId ? "Edit Academic Class" : "Add Academic Class"}>
+        <form onSubmit={handleClassSubmit} className="space-y-4">
           <Input label="Class Name *" required placeholder="e.g. Class 11" value={className} onChange={(e) => setClassName(e.target.value)} />
           <Input label="Description" placeholder="HSSC Part 1" value={classDescription} onChange={(e) => setClassDescription(e.target.value)} />
           <Button type="submit" variant="primary" size="md" isLoading={isLoading} className="w-full justify-center">
-            Create Class
+            {editingClassId ? "Update Class" : "Create Class"}
           </Button>
         </form>
       </Modal>
 
-      {/* Modal Add Subject */}
-      <Modal isOpen={addSubjectModal} onClose={() => setAddSubjectModal(false)} title="Add Subject to Class">
-        <form onSubmit={handleCreateSubject} className="space-y-4">
+      {/* Modal Add/Edit Subject */}
+      <Modal isOpen={addSubjectModal || editSubjectModal} onClose={() => { setAddSubjectModal(false); setEditSubjectModal(false); setEditingSubjectId(null); }} title={editingSubjectId ? "Edit Subject" : "Add Subject to Class"}>
+        <form onSubmit={handleSubjectSubmit} className="space-y-4">
           <Input label="Subject Name *" required placeholder="e.g. Physics" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} />
           <Button type="submit" variant="primary" size="md" isLoading={isLoading} className="w-full justify-center">
-            Add Subject
+            {editingSubjectId ? "Update Subject" : "Add Subject"}
           </Button>
         </form>
       </Modal>

@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
-import { FileText, Plus, Trash2, Award } from 'lucide-react'
+import { FileText, Plus, Trash2, Award, Edit2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { LectureCategory } from '@prisma/client'
 import Link from 'next/link'
@@ -22,6 +22,8 @@ export default function AdminTestsPage() {
   const [classes, setClasses] = useState<any[]>([])
   const [courses, setCourses] = useState<any[]>([])
   const [addModal, setAddModal] = useState(false)
+  const [editModal, setEditModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const [formData, setFormData] = useState<{
@@ -56,7 +58,7 @@ export default function AdminTestsPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    const res = await createTest({
+    const payload = {
       title: formData.title,
       category: formData.category,
       date: formData.date,
@@ -64,16 +66,28 @@ export default function AdminTestsPage() {
       description: formData.description,
       academicClassId: formData.category === LectureCategory.ACADEMIC ? formData.academicClassId : undefined,
       computerCourseId: formData.category === LectureCategory.COMPUTER ? formData.computerCourseId : undefined,
-    })
-
-    setIsLoading(false)
-
-    if (res.error) {
-      toast.error(res.error)
-      return
     }
 
-    toast.success('Test created successfully!')
+    if (editingId) {
+      const res = await updateTest(editingId, payload)
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Test updated successfully!')
+      setEditModal(false)
+    } else {
+      const res = await createTest(payload)
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Test created successfully!')
+      setAddModal(false)
+    }
+
     setFormData({
       title: '',
       category: LectureCategory.ACADEMIC,
@@ -83,7 +97,7 @@ export default function AdminTestsPage() {
       academicClassId: '',
       computerCourseId: '',
     })
-    setAddModal(false)
+    setEditingId(null)
     loadData()
   }
 
@@ -92,6 +106,20 @@ export default function AdminTestsPage() {
     await deleteTest(id)
     toast.success('Test deleted.')
     loadData()
+  }
+
+  const openEditModal = (test: any) => {
+    setEditingId(test.id)
+    setFormData({
+      title: test.title,
+      category: test.category,
+      date: new Date(test.date).toISOString().split('T')[0],
+      totalMarks: test.totalMarks.toString(),
+      description: test.description || '',
+      academicClassId: test.academicClassId || '',
+      computerCourseId: test.computerCourseId || '',
+    })
+    setEditModal(true)
   }
 
   return (
@@ -107,7 +135,7 @@ export default function AdminTestsPage() {
               Enter Student Marks
             </Button>
           </Link>
-          <Button onClick={() => setAddModal(true)} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
+          <Button onClick={() => { setEditingId(null); setFormData({ title: '', category: LectureCategory.ACADEMIC, date: new Date().toISOString().split('T')[0], totalMarks: '100', description: '', academicClassId: '', computerCourseId: '' }); setAddModal(true); }} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
             Create Test
           </Button>
         </div>
@@ -143,6 +171,9 @@ export default function AdminTestsPage() {
                   <td className="p-4 font-bold text-indigo-600">{test.totalMarks} Marks</td>
                   <td className="p-4 text-slate-500">{test._count.results} Graded</td>
                   <td className="p-4 text-right">
+                    <button onClick={() => openEditModal(test)} className="text-slate-400 hover:text-indigo-600 p-1 mr-2">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
                     <button onClick={() => handleDelete(test.id)} className="text-slate-400 hover:text-rose-500 p-1">
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -162,8 +193,8 @@ export default function AdminTestsPage() {
         </CardContent>
       </Card>
 
-      {/* Modal Add Test */}
-      <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Create New Test">
+      {/* Modal Add/Edit Test */}
+      <Modal isOpen={addModal || editModal} onClose={() => { setAddModal(false); setEditModal(false); setEditingId(null); }} title={editingId ? "Edit Test" : "Create New Test"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Test Title *" required placeholder="e.g. Physics Chapter 3 Test" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -197,7 +228,7 @@ export default function AdminTestsPage() {
           )}
 
           <Button type="submit" variant="primary" size="md" isLoading={isLoading} className="w-full justify-center">
-            Save Test
+            {editingId ? "Update Test" : "Save Test"}
           </Button>
         </form>
       </Modal>

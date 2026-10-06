@@ -62,3 +62,34 @@ export async function getAdmissions() {
   })
   return serialize(data)
 }
+
+export async function updateAdmission(id: string, data: {
+  admissionDate?: string
+  joiningDate?: string
+  monthlyFee?: number
+  initialPayment?: number
+  academicClassId?: string | null
+  notes?: string | null
+}) {
+  await requireAdmin()
+
+  const updateData: any = { ...data }
+  if (data.admissionDate) updateData.admissionDate = new Date(data.admissionDate)
+  if (data.joiningDate) updateData.joiningDate = new Date(data.joiningDate)
+
+  const admission = await prisma.admission.update({
+    where: { id },
+    data: updateData,
+  })
+
+  revalidatePath('/admin/admissions')
+  revalidatePath(`/admin/students/${admission.studentId}`)
+  return { success: true, admission: serialize(admission) }
+}
+
+export async function deleteAdmission(id: string) {
+  await requireAdmin()
+  await prisma.admission.delete({ where: { id } })
+  revalidatePath('/admin/admissions')
+  return { success: true }
+}

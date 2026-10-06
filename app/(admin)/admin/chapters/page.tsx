@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { getChapters, createChapter, deleteChapter } from '@/app/actions/chapters'
+import { getChapters, createChapter, updateChapter, deleteChapter } from '@/app/actions/chapters'
 import { getAcademicClasses } from '@/app/actions/academic'
 import { getComputerCourses } from '@/app/actions/courses'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
-import { Bookmark, Plus, Trash2 } from 'lucide-react'
+import { Bookmark, Plus, Trash2, Edit2 } from 'lucide-react'
 
 export default function AdminChaptersPage() {
   const toast = useToast()
@@ -19,6 +19,8 @@ export default function AdminChaptersPage() {
   const [classes, setClasses] = useState<any[]>([])
   const [courses, setCourses] = useState<any[]>([])
   const [addModal, setAddModal] = useState(false)
+  const [editModal, setEditModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -51,23 +53,35 @@ export default function AdminChaptersPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    const res = await createChapter({
+    const payload = {
       title: formData.title,
       chapterNumber: parseInt(formData.chapterNumber, 10) || 1,
       academicSubjectId: formData.categoryType === 'ACADEMIC' ? formData.academicSubjectId : undefined,
       computerCourseId: formData.categoryType === 'COMPUTER' ? formData.computerCourseId : undefined,
-    })
-
-    setIsLoading(false)
-
-    if (res.error) {
-      toast.error(res.error)
-      return
     }
 
-    toast.success('Chapter added!')
+    if (editingId) {
+      const res = await updateChapter(editingId, payload)
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Chapter updated!')
+      setEditModal(false)
+    } else {
+      const res = await createChapter(payload)
+      setIsLoading(false)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success('Chapter added!')
+      setAddModal(false)
+    }
+
     setFormData({ title: '', chapterNumber: '1', categoryType: 'ACADEMIC', academicSubjectId: '', computerCourseId: '' })
-    setAddModal(false)
+    setEditingId(null)
     loadData()
   }
 
@@ -78,6 +92,18 @@ export default function AdminChaptersPage() {
     loadData()
   }
 
+  const openEditModal = (ch: any) => {
+    setEditingId(ch.id)
+    setFormData({
+      title: ch.title,
+      chapterNumber: ch.chapterNumber.toString(),
+      categoryType: ch.academicSubjectId ? 'ACADEMIC' : 'COMPUTER',
+      academicSubjectId: ch.academicSubjectId || '',
+      computerCourseId: ch.computerCourseId || '',
+    })
+    setEditModal(true)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -85,7 +111,7 @@ export default function AdminChaptersPage() {
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Chapter Management</h2>
           <p className="text-xs text-slate-500">Organize subject and course materials into structured chapters.</p>
         </div>
-        <Button onClick={() => setAddModal(true)} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
+        <Button onClick={() => { setEditingId(null); setFormData({ title: '', chapterNumber: '1', categoryType: 'ACADEMIC', academicSubjectId: '', computerCourseId: '' }); setAddModal(true); }} variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
           Add Chapter
         </Button>
       </div>
@@ -120,6 +146,9 @@ export default function AdminChaptersPage() {
                   </td>
                   <td className="p-4 text-slate-500">{ch.lectures.length} Lectures</td>
                   <td className="p-4 text-right">
+                    <button onClick={() => openEditModal(ch)} className="text-slate-400 hover:text-indigo-600 p-1 mr-2">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
                     <button onClick={() => handleDelete(ch.id)} className="text-slate-400 hover:text-rose-500 p-1">
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -139,8 +168,8 @@ export default function AdminChaptersPage() {
         </CardContent>
       </Card>
 
-      {/* Modal Add Chapter */}
-      <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Add Chapter">
+      {/* Modal Add/Edit Chapter */}
+      <Modal isOpen={addModal || editModal} onClose={() => { setAddModal(false); setEditModal(false); setEditingId(null); }} title={editingId ? "Edit Chapter" : "Add Chapter"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Chapter Title *" required placeholder="e.g. Chapter 1: Physical Quantities" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
           <Input label="Chapter Number" type="number" value={formData.chapterNumber} onChange={(e) => setFormData({ ...formData, chapterNumber: e.target.value })} />
@@ -171,7 +200,7 @@ export default function AdminChaptersPage() {
           )}
 
           <Button type="submit" variant="primary" size="md" isLoading={isLoading} className="w-full justify-center">
-            Save Chapter
+            {editingId ? "Update Chapter" : "Save Chapter"}
           </Button>
         </form>
       </Modal>
